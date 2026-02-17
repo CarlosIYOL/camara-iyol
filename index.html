@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CORPORATIVO IYOL - Cámara</title>
     <style>
-        /* --- ESTILOS ORIGINALES IYOL --- */
+        /* ESTILOS IYOL */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -17,81 +17,86 @@
             transition: background-color 0.3s;
         }
 
-        /* VISTA 1: MENÚ (Visible al inicio) */
-        #view-menu {
-            display: block; 
-            width: 100%;
-            display: flex;
-            justify-content: center;
-        }
+        #view-menu { width: 100%; text-align: center; }
         
         .tab {
             background-color: #283593;
             color: white;
-            padding: 30px 40px;
-            border-radius: 10px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        
-        .btn-new-folder {
-            background-color: #ff7043;
-            border: none;
-            color: white;
-            padding: 15px 30px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: background-color 0.3s ease;
-        }
-        .btn-new-folder:hover {
-            background-color: #d84315;
+            padding: 30px 20px;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            width: 90%;
+            max-width: 400px;
         }
 
-        /* VISTA 2: CÁMARA (Oculta al inicio) */
+        .btn-new {
+            background-color: #ff7043;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        .btn-new:hover { background-color: #d84315; }
+
+        /* VISTA CÁMARA */
         #view-camera {
-            display: none; /* Se activa con JS */
+            display: none;
             flex-direction: column;
             align-items: center;
             width: 100%;
             max-width: 800px;
             padding: 10px;
-            text-align: center;
         }
 
-        /* Estilos internos de la cámara (Originales) */
-        .camera-title { font-size: 1.5em; margin-bottom: 10px; color: #333; }
-        
+        .info-bar {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            margin-bottom: 10px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .info-bar h3 { margin: 5px 0; color: #283593; font-size: 1.1em; }
+        .info-bar p { margin: 0; color: #666; font-size: 0.9em; }
+
         video {
             width: 100%;
-            max-width: 600px;
-            height: auto;
             border-radius: 10px;
-            margin: 10px 0;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
             background: #000;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
 
-        .controls-area button {
-            background-color: #2196f3;
-            color: white;
-            padding: 15px 30px;
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 15px;
+            width: 100%;
+        }
+
+        .btn-action {
             border: none;
-            border-radius: 5px;
+            padding: 15px 20px;
+            border-radius: 8px;
             font-size: 16px;
-            margin: 10px;
+            color: white;
+            font-weight: bold;
             cursor: pointer;
+            flex: 1;
         }
-        .controls-area button:hover { background-color: #1976d2; }
         
-        .controls-area .btn-finish { background-color: #4caf50; }
-        .controls-area .btn-finish:hover { background-color: #388e3c; }
+        .btn-shot { background-color: #2196f3; }
+        .btn-save { background-color: #4caf50; }
+        
+        #status { margin-top: 20px; font-weight: bold; color: #333; text-align: center;}
 
-        #status { margin-top: 15px; font-weight: bold; color: #333; }
-        
-        /* Ocultar canvas usado para captura */
-        canvas { display: none; }
     </style>
 </head>
 <body>
@@ -99,71 +104,83 @@
     <div id="view-menu">
         <div class="tab">
             <h1>CORPORATIVO IYOL</h1>
-            <button class="btn-new-folder" onclick="startSession()">Nueva Carpeta</button>
+            <p>📸 Sistema de Evidencia</p>
+            <button class="btn-new" onclick="startSession()">📂 Iniciar Nueva Carpeta</button>
         </div>
     </div>
 
     <div id="view-camera">
-        <h2 id="folder-title" class="camera-title">Carpeta: ---</h2>
-        <p style="color:#555;">Fotos capturadas: <span id="count" style="font-weight:bold; color:#283593;">0</span></p>
+        <div class="info-bar">
+            <h3>👤 <span id="lbl-user">---</span></h3>
+            <p>📂 <span id="lbl-job">---</span></p>
+            <p>Fotos: <span id="count" style="color:#e65100; font-weight:bold;">0</span></p>
+        </div>
 
         <video id="video" autoplay playsinline></video>
-        <canvas id="canvas"></canvas>
-        
-        <div class="controls-area" id="controls">
-            <button onclick="takePhoto()">📸 Tomar Foto</button>
-            <button class="btn-finish" onclick="finishSession()">💾 Finalizar y Guardar</button>
+        <canvas id="canvas" style="display:none;"></canvas>
+
+        <div class="controls" id="controls-area">
+            <button class="btn-action btn-shot" onclick="takePhoto()">📷 FOTO</button>
+            <button class="btn-action btn-save" onclick="finishSession()">💾 FINALIZAR</button>
         </div>
         
         <div id="status"></div>
     </div>
-
+    
     <audio id="shutterSound" src="https://www.soundjay.com/mechanical/sounds/camera-shutter-click-08.mp3"></audio>
 
     <script>
-        // CONFIGURACIÓN
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby3qCr5-yEyUzT-huoIEJMDnF2rZL0TlJOSf-6sv-lge_nrsAHHQ9D7yRX9ehHQO6KvTw/exec";
+        // TU NUEVA URL YA INTEGRADA:
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylKfa7j3CCVd3b_JUzhwHfFMuyszIyO-MBdcQIiO-tCqACGfIL-d6gOkOISJOEBNedIQ/exec";
 
-        // Variables de estado
-        let currentFolderName = "";
+        // Variables
+        let userFolder = "";
+        let jobFolder = "";
         let photoQueue = [];
         let stream = null;
 
-        // Referencias DOM
+        // Elementos DOM
         const viewMenu = document.getElementById('view-menu');
         const viewCamera = document.getElementById('view-camera');
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const context = canvas.getContext('2d');
+        const lblUser = document.getElementById('lbl-user');
+        const lblJob = document.getElementById('lbl-job');
         const countSpan = document.getElementById('count');
         const statusDiv = document.getElementById('status');
-        const folderTitle = document.getElementById('folder-title');
-        const controlsDiv = document.getElementById('controls');
+        const controls = document.getElementById('controls-area');
         const shutterSound = document.getElementById('shutterSound');
 
-        // --- 1. INICIAR SESIÓN (Cambio de vista sin popup) ---
+        // 1. INICIAR (Preguntar Nombres)
         function startSession() {
-            const name = prompt("Ingresa el nombre para la nueva carpeta:");
-            if (!name) return; // Si cancela, no hace nada
+            // Pregunta 1: Carpeta Padre (Usuario)
+            let u = prompt("PASO 1: Ingresa TU NOMBRE (o Área):");
+            if (!u) return;
 
-            // Configurar entorno
-            currentFolderName = name;
+            // Pregunta 2: Carpeta Hija (Trabajo)
+            let j = prompt("PASO 2: Ingresa nombre de la EVIDENCIA (Ticket, Sitio, etc):");
+            if (!j) return;
+
+            userFolder = u;
+            jobFolder = j;
+            
+            // Configurar UI
+            lblUser.innerText = userFolder;
+            lblJob.innerText = jobFolder;
             photoQueue = [];
             countSpan.innerText = "0";
-            folderTitle.innerText = "Carpeta: " + currentFolderName;
             statusDiv.innerText = "";
-            controlsDiv.style.display = 'block';
+            controls.style.display = 'flex';
 
-            // SWAP DE VISTAS (Magia SPA)
+            // Cambiar pantalla
             viewMenu.style.display = 'none';
             viewCamera.style.display = 'flex';
-            document.body.style.backgroundColor = "#f3f4f6"; // Cambio de fondo al gris claro
+            document.body.style.backgroundColor = "#e8eaf6"; // Color gris claro de fondo
 
-            // Encender cámara
             initCamera();
         }
 
-        // --- 2. GESTIÓN DE CÁMARA ---
+        // 2. CÁMARA
         function initCamera() {
             const constraints = {
                 video: {
@@ -172,98 +189,85 @@
                     height: { ideal: 720 }
                 }
             };
-
+            
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 navigator.mediaDevices.getUserMedia(constraints)
                 .then(s => {
                     stream = s;
                     video.srcObject = stream;
                 })
-                .catch(err => {
-                    alert("Error de Cámara: " + err.message + "\n\nNOTA: Si estás en celular, asegúrate de usar HTTPS o localhost.");
-                    returnToMenu();
+                .catch(e => {
+                    alert("Error al abrir cámara: " + e.message + "\nRevisa que estés en HTTPS.");
+                    location.reload();
                 });
             } else {
-                alert("Tu navegador no soporta acceso a la cámara.");
-                returnToMenu();
+                alert("Navegador no soporta cámara.");
             }
         }
 
-        // --- 3. TOMAR FOTO ---
+        // 3. TOMAR FOTO
         function takePhoto() {
             if (!stream) return;
-
-            // Ajustar canvas y dibujar
+            const ctx = canvas.getContext('2d');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
+            ctx.drawImage(video, 0, 0);
 
             // Sonido
             if(shutterSound) shutterSound.play().catch(e => console.log(e));
 
-            // Convertir a JPG (calidad 0.8)
-            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            // Calidad 0.7 para subir rápido
+            const data = canvas.toDataURL('image/jpeg', 0.7);
             
-            // Agregar a la cola
-            const fileName = currentFolderName + "-" + (photoQueue.length + 1) + ".jpg";
-            photoQueue.push({ name: fileName, data: imageData });
+            // Nombre archivo: Carlos_Ticket1_1.jpg
+            // Limpiamos caracteres raros de los nombres de carpeta
+            const safeUser = userFolder.replace(/[^a-zA-Z0-9]/g, "");
+            const safeJob = jobFolder.replace(/[^a-zA-Z0-9]/g, "");
+            
+            const name = `${safeUser}_${safeJob}_${photoQueue.length + 1}.jpg`;
 
-            // Feedback Visual
+            photoQueue.push({ name: name, data: data });
             countSpan.innerText = photoQueue.length;
-            statusDiv.innerText = "✅ Foto capturada (" + photoQueue.length + ")";
+            
+            // Efecto visual rápido
+            statusDiv.innerText = `✅ Foto #${photoQueue.length} lista.`;
             statusDiv.style.color = "#283593";
         }
 
-        // --- 4. SUBIR A DRIVE ---
+        // 4. FINALIZAR
         function finishSession() {
             if (photoQueue.length === 0) {
-                alert("No has tomado ninguna foto.");
+                alert("Toma al menos una foto.");
                 return;
             }
 
-            if (!confirm("¿Deseas finalizar y subir " + photoQueue.length + " fotos a Drive?")) return;
+            if(!confirm(`¿Subir ${photoQueue.length} fotos a:\n📂 ${userFolder} \n ↳ 📁 ${jobFolder}?`)) return;
 
-            // Bloquear interfaz
-            controlsDiv.style.display = 'none';
-            statusDiv.innerText = "⏳ Subiendo imágenes a Drive... Por favor espera.";
+            controls.style.display = 'none';
+            statusDiv.innerText = "⏳ Subiendo a Drive... Por favor espera.";
             statusDiv.style.color = "#d84315";
 
             const payload = {
-                folderName: currentFolderName,
+                mainFolder: userFolder, // Carpeta PADRE
+                subFolder: jobFolder,   // Carpeta HIJA
                 images: photoQueue
             };
 
-            // Fetch con modo NO-CORS (Blindado contra errores de red)
-            fetch(GOOGLE_SCRIPT_URL, {
+            fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert("¡Proceso Terminado!\n\nLas fotos se están guardando en segundo plano en la carpeta: " + currentFolderName);
-                returnToMenu();
+                alert("✅ ¡Éxito! Las fotos se están guardando en la carpeta: " + userFolder);
+                location.reload(); // Recargar para empezar de nuevo
             })
-            .catch(error => {
-                console.error(error);
-                alert("Hubo un error de conexión: " + error);
-                controlsDiv.style.display = 'block';
-                statusDiv.innerText = "Error. Intenta de nuevo.";
+            .catch(e => {
+                alert("Error de red: " + e);
+                controls.style.display = 'flex';
+                statusDiv.innerText = "Error al subir.";
             });
-        }
-
-        // --- 5. RESTAURAR ---
-        function returnToMenu() {
-            // Apagar cámara para ahorrar batería
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-
-            // Volver a vista inicial
-            viewCamera.style.display = 'none';
-            viewMenu.style.display = 'flex'; // Flex para centrar el menú
-            document.body.style.backgroundColor = "#e3e3f4"; // Fondo original
         }
     </script>
 </body>

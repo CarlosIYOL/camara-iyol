@@ -31,7 +31,7 @@
         }
 
         .btn-new {
-            background-color: #ff7043;
+            background-color: #d84315; /* Un rojo/naranja más fuerte */
             color: white;
             border: none;
             padding: 15px 30px;
@@ -42,7 +42,7 @@
             margin-top: 20px;
             font-weight: bold;
         }
-        .btn-new:hover { background-color: #d84315; }
+        .btn-new:hover { background-color: #bf360c; }
         
         .btn-logout {
             background-color: transparent;
@@ -60,6 +60,42 @@
             width: 100%;
             max-width: 800px;
             padding: 10px;
+        }
+
+        /* VISTA CARGANDO (NUEVO) */
+        #view-loading {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 999;
+            text-align: center;
+        }
+
+        /* SPINNER DE CARGA */
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #283593;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: #283593;
+            font-size: 1.2em;
+            font-weight: bold;
         }
 
         .info-bar {
@@ -105,7 +141,6 @@
         
         #status { margin-top: 20px; font-weight: bold; color: #333; text-align: center;}
         
-        /* Mensaje de usuario activo en menú */
         #user-display {
             font-size: 0.9em;
             color: #ddd;
@@ -123,7 +158,7 @@
             <div id="user-display">Usuario: <b id="current-user-name">---</b></div>
             <p>📸 Sistema de Evidencia</p>
             
-            <button class="btn-new" id="btn-start" onclick="handleStart()">📂 Iniciar Turno / Carpeta</button>
+            <button class="btn-new" id="btn-start" onclick="handleStart()">📂 Iniciar</button>
             
             <button class="btn-new btn-logout" id="btn-logout" onclick="logout()" style="display:none;">🔄 Cambiar Usuario</button>
         </div>
@@ -146,6 +181,11 @@
         
         <div id="status"></div>
     </div>
+
+    <div id="view-loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Subiendo Evidencias...<br>Por favor espera.</div>
+    </div>
     
     <audio id="shutterSound" src="https://www.soundjay.com/mechanical/sounds/camera-shutter-click-08.mp3"></audio>
 
@@ -154,14 +194,15 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylKfa7j3CCVd3b_JUzhwHfFMuyszIyO-MBdcQIiO-tCqACGfIL-d6gOkOISJOEBNedIQ/exec";
 
         // Variables Globales
-        let sessionUser = ""; // Aquí guardamos el usuario (Carpeta Padre)
-        let sessionJob = "";  // Aquí guardamos la evidencia (Carpeta Hija)
+        let sessionUser = ""; 
+        let sessionJob = "";  
         let photoQueue = [];
         let stream = null;
 
         // Elementos DOM
         const viewMenu = document.getElementById('view-menu');
         const viewCamera = document.getElementById('view-camera');
+        const viewLoading = document.getElementById('view-loading'); // Referencia a pantalla carga
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const lblUser = document.getElementById('lbl-user');
@@ -177,26 +218,24 @@
 
         // 1. CONTROL DE INICIO
         function handleStart() {
-            // Si NO hay usuario guardado, lo pedimos
             if (!sessionUser) {
-                let u = prompt("PASO 1: Ingresa TU NOMBRE (Carpeta Principal):");
+                // CAMBIO 2: Texto modificado
+                let u = prompt("PASO 1: Ingresa Nombre (Carpeta Principal):");
                 if (!u) return;
                 sessionUser = u;
                 
-                // Actualizar interfaz del menú
                 currentUserNameSpan.innerText = sessionUser;
                 userDisplay.style.display = 'block';
                 btnStart.innerText = "📂 Nueva Evidencia";
                 btnLogout.style.display = 'inline-block';
             }
-
-            // Pedir nombre de la evidencia
             startNewEvidence();
         }
 
-        // 2. INICIAR EVIDENCIA (Ya tenemos usuario)
+        // 2. INICIAR EVIDENCIA
         function startNewEvidence() {
-            let j = prompt(`Usuario: ${sessionUser}\nPASO 2: Nombre de la EVIDENCIA:`);
+            // CAMBIO 1: Quitamos el nombre del usuario de este prompt
+            let j = prompt(`PASO 2: Nombre de la EVIDENCIA:`);
             if (!j) return;
 
             sessionJob = j;
@@ -204,32 +243,28 @@
         }
 
         function launchCameraInterface() {
-            // Resetear cola de fotos
             photoQueue = [];
             countSpan.innerText = "0";
             statusDiv.innerText = "";
             controls.style.display = 'flex';
             
-            // UI Update
             lblUser.innerText = sessionUser;
             lblJob.innerText = sessionJob;
 
-            // Cambiar vista
             viewMenu.style.display = 'none';
+            viewLoading.style.display = 'none'; // Asegurar que carga esté oculta
             viewCamera.style.display = 'flex';
             document.body.style.backgroundColor = "#e8eaf6";
 
             initCamera();
         }
 
-        // 3. CAMBIAR DE USUARIO
         function logout() {
             if(confirm("¿Cerrar sesión de " + sessionUser + "?")) {
-                location.reload(); // Recarga la página para limpiar todo
+                location.reload(); 
             }
         }
 
-        // 4. CÁMARA
         function initCamera() {
             const constraints = {
                 video: {
@@ -254,7 +289,6 @@
             }
         }
 
-        // 5. FOTO
         function takePhoto() {
             if (!stream) return;
             const ctx = canvas.getContext('2d');
@@ -264,10 +298,8 @@
 
             if(shutterSound) shutterSound.play().catch(e => console.log(e));
 
-            // Calidad 0.7
             const data = canvas.toDataURL('image/jpeg', 0.7);
             
-            // Limpieza básica de nombres
             const safeUser = sessionUser.replace(/[^a-zA-Z0-9]/g, "");
             const safeJob = sessionJob.replace(/[^a-zA-Z0-9]/g, "");
             const name = `${safeUser}_${safeJob}_${photoQueue.length + 1}.jpg`;
@@ -279,7 +311,7 @@
             statusDiv.style.color = "#283593";
         }
 
-        // 6. FINALIZAR Y CICLO
+        // 6. FINALIZAR Y MOSTRAR CARGA
         function finishSession() {
             if (photoQueue.length === 0) {
                 alert("Toma al menos una foto.");
@@ -288,9 +320,9 @@
 
             if(!confirm(`¿Subir ${photoQueue.length} fotos a:\n📂 ${sessionUser} \n ↳ 📁 ${sessionJob}?`)) return;
 
-            controls.style.display = 'none';
-            statusDiv.innerText = "⏳ Subiendo a Drive... Por favor espera.";
-            statusDiv.style.color = "#d84315";
+            // CAMBIO 4: Ocultar cámara y mostrar PANTALLA DE CARGA
+            viewCamera.style.display = 'none'; // Adiós cámara
+            viewLoading.style.display = 'flex'; // Hola spinner
 
             const payload = {
                 mainFolder: sessionUser,
@@ -305,30 +337,29 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                // AQUÍ ESTÁ LA MAGIA DEL CICLO
+                // Al terminar, ocultamos carga
+                viewLoading.style.display = 'none';
+
                 alert("✅ ¡Evidencia Guardada!");
                 
-                // Detener cámara actual
                 if (stream) {
                     stream.getTracks().forEach(t => t.stop());
                     stream = null;
                 }
 
-                // Preguntar ciclo
-                let next = confirm(`¿Deseas crear OTRA evidencia para el usuario: ${sessionUser}? \n\n(Aceptar = Sí, Nueva Evidencia \nCancelar = No, Cambiar Usuario)`);
+                let next = confirm(`¿Crear OTRA evidencia para: ${sessionUser}? \n\n(Aceptar = SÍ \nCancelar = NO, Salir)`);
                 
                 if (next) {
-                    // Si dice SÍ: Pedimos nuevo trabajo inmediatamente
                     startNewEvidence();
                 } else {
-                    // Si dice NO: Recargamos para ir al inicio
                     location.reload();
                 }
             })
             .catch(e => {
+                // Si falla, ocultamos carga y mostramos menú de nuevo o error
+                viewLoading.style.display = 'none';
                 alert("Error red: " + e);
-                controls.style.display = 'flex';
-                statusDiv.innerText = "Error al subir.";
+                location.reload();
             });
         }
 

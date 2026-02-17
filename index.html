@@ -43,6 +43,14 @@
             font-weight: bold;
         }
         .btn-new:hover { background-color: #d84315; }
+        
+        .btn-logout {
+            background-color: transparent;
+            border: 1px solid #fff;
+            margin-top: 10px;
+            padding: 10px;
+            font-size: 14px;
+        }
 
         /* VISTA CÁMARA */
         #view-camera {
@@ -96,6 +104,14 @@
         .btn-save { background-color: #4caf50; }
         
         #status { margin-top: 20px; font-weight: bold; color: #333; text-align: center;}
+        
+        /* Mensaje de usuario activo en menú */
+        #user-display {
+            font-size: 0.9em;
+            color: #ddd;
+            margin-bottom: 5px;
+            display: none;
+        }
 
     </style>
 </head>
@@ -104,8 +120,12 @@
     <div id="view-menu">
         <div class="tab">
             <h1>CORPORATIVO IYOL</h1>
+            <div id="user-display">Usuario: <b id="current-user-name">---</b></div>
             <p>📸 Sistema de Evidencia</p>
-            <button class="btn-new" onclick="startSession()">📂 Iniciar Nueva Carpeta</button>
+            
+            <button class="btn-new" id="btn-start" onclick="handleStart()">📂 Iniciar Turno / Carpeta</button>
+            
+            <button class="btn-new btn-logout" id="btn-logout" onclick="logout()" style="display:none;">🔄 Cambiar Usuario</button>
         </div>
     </div>
 
@@ -130,12 +150,12 @@
     <audio id="shutterSound" src="https://www.soundjay.com/mechanical/sounds/camera-shutter-click-08.mp3"></audio>
 
     <script>
-        // TU NUEVA URL YA INTEGRADA:
+        // URL DEL SCRIPT
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbylKfa7j3CCVd3b_JUzhwHfFMuyszIyO-MBdcQIiO-tCqACGfIL-d6gOkOISJOEBNedIQ/exec";
 
-        // Variables
-        let userFolder = "";
-        let jobFolder = "";
+        // Variables Globales
+        let sessionUser = ""; // Aquí guardamos el usuario (Carpeta Padre)
+        let sessionJob = "";  // Aquí guardamos la evidencia (Carpeta Hija)
         let photoQueue = [];
         let stream = null;
 
@@ -149,42 +169,71 @@
         const countSpan = document.getElementById('count');
         const statusDiv = document.getElementById('status');
         const controls = document.getElementById('controls-area');
+        const btnStart = document.getElementById('btn-start');
+        const btnLogout = document.getElementById('btn-logout');
+        const userDisplay = document.getElementById('user-display');
+        const currentUserNameSpan = document.getElementById('current-user-name');
         const shutterSound = document.getElementById('shutterSound');
 
-        // 1. INICIAR (Preguntar Nombres)
-        function startSession() {
-            // Pregunta 1: Carpeta Padre (Usuario)
-            let u = prompt("PASO 1: Ingresa TU NOMBRE (o Área):");
-            if (!u) return;
+        // 1. CONTROL DE INICIO
+        function handleStart() {
+            // Si NO hay usuario guardado, lo pedimos
+            if (!sessionUser) {
+                let u = prompt("PASO 1: Ingresa TU NOMBRE (Carpeta Principal):");
+                if (!u) return;
+                sessionUser = u;
+                
+                // Actualizar interfaz del menú
+                currentUserNameSpan.innerText = sessionUser;
+                userDisplay.style.display = 'block';
+                btnStart.innerText = "📂 Nueva Evidencia";
+                btnLogout.style.display = 'inline-block';
+            }
 
-            // Pregunta 2: Carpeta Hija (Trabajo)
-            let j = prompt("PASO 2: Ingresa nombre de la EVIDENCIA (Ticket, Sitio, etc):");
+            // Pedir nombre de la evidencia
+            startNewEvidence();
+        }
+
+        // 2. INICIAR EVIDENCIA (Ya tenemos usuario)
+        function startNewEvidence() {
+            let j = prompt(`Usuario: ${sessionUser}\nPASO 2: Nombre de la EVIDENCIA:`);
             if (!j) return;
 
-            userFolder = u;
-            jobFolder = j;
-            
-            // Configurar UI
-            lblUser.innerText = userFolder;
-            lblJob.innerText = jobFolder;
+            sessionJob = j;
+            launchCameraInterface();
+        }
+
+        function launchCameraInterface() {
+            // Resetear cola de fotos
             photoQueue = [];
             countSpan.innerText = "0";
             statusDiv.innerText = "";
             controls.style.display = 'flex';
+            
+            // UI Update
+            lblUser.innerText = sessionUser;
+            lblJob.innerText = sessionJob;
 
-            // Cambiar pantalla
+            // Cambiar vista
             viewMenu.style.display = 'none';
             viewCamera.style.display = 'flex';
-            document.body.style.backgroundColor = "#e8eaf6"; // Color gris claro de fondo
+            document.body.style.backgroundColor = "#e8eaf6";
 
             initCamera();
         }
 
-        // 2. CÁMARA
+        // 3. CAMBIAR DE USUARIO
+        function logout() {
+            if(confirm("¿Cerrar sesión de " + sessionUser + "?")) {
+                location.reload(); // Recarga la página para limpiar todo
+            }
+        }
+
+        // 4. CÁMARA
         function initCamera() {
             const constraints = {
                 video: {
-                    facingMode: { ideal: "environment" }, // Busca cámara trasera
+                    facingMode: { ideal: "environment" },
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 }
@@ -197,15 +246,15 @@
                     video.srcObject = stream;
                 })
                 .catch(e => {
-                    alert("Error al abrir cámara: " + e.message + "\nRevisa que estés en HTTPS.");
-                    location.reload();
+                    alert("Error cámara: " + e.message);
+                    returnToMenu();
                 });
             } else {
-                alert("Navegador no soporta cámara.");
+                alert("Navegador no compatible.");
             }
         }
 
-        // 3. TOMAR FOTO
+        // 5. FOTO
         function takePhoto() {
             if (!stream) return;
             const ctx = canvas.getContext('2d');
@@ -213,43 +262,39 @@
             canvas.height = video.videoHeight;
             ctx.drawImage(video, 0, 0);
 
-            // Sonido
             if(shutterSound) shutterSound.play().catch(e => console.log(e));
 
-            // Calidad 0.7 para subir rápido
+            // Calidad 0.7
             const data = canvas.toDataURL('image/jpeg', 0.7);
             
-            // Nombre archivo: Carlos_Ticket1_1.jpg
-            // Limpiamos caracteres raros de los nombres de carpeta
-            const safeUser = userFolder.replace(/[^a-zA-Z0-9]/g, "");
-            const safeJob = jobFolder.replace(/[^a-zA-Z0-9]/g, "");
-            
+            // Limpieza básica de nombres
+            const safeUser = sessionUser.replace(/[^a-zA-Z0-9]/g, "");
+            const safeJob = sessionJob.replace(/[^a-zA-Z0-9]/g, "");
             const name = `${safeUser}_${safeJob}_${photoQueue.length + 1}.jpg`;
 
             photoQueue.push({ name: name, data: data });
             countSpan.innerText = photoQueue.length;
             
-            // Efecto visual rápido
             statusDiv.innerText = `✅ Foto #${photoQueue.length} lista.`;
             statusDiv.style.color = "#283593";
         }
 
-        // 4. FINALIZAR
+        // 6. FINALIZAR Y CICLO
         function finishSession() {
             if (photoQueue.length === 0) {
                 alert("Toma al menos una foto.");
                 return;
             }
 
-            if(!confirm(`¿Subir ${photoQueue.length} fotos a:\n📂 ${userFolder} \n ↳ 📁 ${jobFolder}?`)) return;
+            if(!confirm(`¿Subir ${photoQueue.length} fotos a:\n📂 ${sessionUser} \n ↳ 📁 ${sessionJob}?`)) return;
 
             controls.style.display = 'none';
             statusDiv.innerText = "⏳ Subiendo a Drive... Por favor espera.";
             statusDiv.style.color = "#d84315";
 
             const payload = {
-                mainFolder: userFolder, // Carpeta PADRE
-                subFolder: jobFolder,   // Carpeta HIJA
+                mainFolder: sessionUser,
+                subFolder: sessionJob,
                 images: photoQueue
             };
 
@@ -260,14 +305,35 @@
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                alert("✅ ¡Éxito! Las fotos se están guardando en la carpeta: " + userFolder);
-                location.reload(); // Recargar para empezar de nuevo
+                // AQUÍ ESTÁ LA MAGIA DEL CICLO
+                alert("✅ ¡Evidencia Guardada!");
+                
+                // Detener cámara actual
+                if (stream) {
+                    stream.getTracks().forEach(t => t.stop());
+                    stream = null;
+                }
+
+                // Preguntar ciclo
+                let next = confirm(`¿Deseas crear OTRA evidencia para el usuario: ${sessionUser}? \n\n(Aceptar = Sí, Nueva Evidencia \nCancelar = No, Cambiar Usuario)`);
+                
+                if (next) {
+                    // Si dice SÍ: Pedimos nuevo trabajo inmediatamente
+                    startNewEvidence();
+                } else {
+                    // Si dice NO: Recargamos para ir al inicio
+                    location.reload();
+                }
             })
             .catch(e => {
-                alert("Error de red: " + e);
+                alert("Error red: " + e);
                 controls.style.display = 'flex';
                 statusDiv.innerText = "Error al subir.";
             });
+        }
+
+        function returnToMenu() {
+            location.reload();
         }
     </script>
 </body>
